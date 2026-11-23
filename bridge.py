@@ -46,7 +46,12 @@ def truthy(value):
 
 class Config:
     def __init__(self, env=None):
-        g = (env if env is not None else os.environ).get
+        source = env if env is not None else os.environ
+
+        def g(key, default=""):
+            # A blank value (e.g. an empty field in a container template) means "use the default".
+            return (source.get(key) or "").strip() or default
+
         self.port = int(g("LISTEN_PORT", "8080"))
         self.yeastar_api_key = g("YEASTAR_API_KEY", "")
         self.yeastar_webhook_url = g("YEASTAR_WEBHOOK_URL", "")

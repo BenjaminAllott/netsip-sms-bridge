@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>netsip-sms-bridge</Name>
+  <Repository>sparkybearbomb/netsip-sms-bridge:latest</Repository>
+  <Registry>https://hub.docker.com/r/sparkybearbomb/netsip-sms-bridge</Registry>
+  <Network>bridge</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/BenjaminAllott/netsip-sms-bridge/issues</Support>
+  <Project>https://github.com/BenjaminAllott/netsip-sms-bridge</Project>
+  <Overview>SMS bridge between Over the Wire / NetSIP and a Yeastar P-Series PBX. On the PBX add an SMS channel with ITSP "General" and point it at https://YOUR-HOST/yeastar/send and https://YOUR-HOST/yeastar/verify. The PBX requires HTTPS, so put a reverse proxy in front of the port below.</Overview>
+  <Category>Network:Voip Network:Messenger</Category>
+  <WebUI/>
+  <TemplateURL>https://raw.githubusercontent.com/BenjaminAllott/netsip-sms-bridge/main/unraid/netsip-sms-bridge.xml</TemplateURL>
+  <Icon/>
+  <ExtraParams>--restart unless-stopped</ExtraParams>
+  <Config Name="Port" Target="8080" Default="8580" Mode="tcp" Description="HTTP port of the bridge. Point your HTTPS reverse proxy at this." Type="Port" Display="always" Required="true" Mask="false">8580</Config>
+  <Config Name="Data" Target="/data" Default="/mnt/user/appdata/netsip-sms-bridge" Mode="rw" Description="Stores the list of inbound messages already delivered to the PBX." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/netsip-sms-bridge</Config>
+  <Config Name="Yeastar API Key" Target="YEASTAR_API_KEY" Default="" Mode="" Description="Any long random string. Enter the same value as API Key on the PBX SMS channel." Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="Yeastar Secret" Target="YEASTAR_SECRET" Default="" Mode="" Description="Any long random string. Enter the same value as Secret on the PBX SMS channel." Type="Variable" Display="always" Required="false" Mask="true"/>
+  <Config Name="Yeastar Webhook URL" Target="YEASTAR_WEBHOOK_URL" Default="" Mode="" Description="The Webhook URL the PBX shows on the SMS channel." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="NetSIP Account ID" Target="NETSIP_ACCOUNT_ID" Default="" Mode="" Description="Over the Wire account ID, e.g. SRC12345." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="NetSIP Username" Target="NETSIP_USERNAME" Default="" Mode="" Description="NetSIP API username." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="NetSIP Password" Target="NETSIP_PASSWORD" Default="" Mode="" Description="NetSIP API password." Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="NetSIP Numbers" Target="NETSIP_NUMBERS" Default="" Mode="" Description="Optional. Comma separated numbers to poll for inbound SMS. Empty = every number on the account." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="Inbound Mode" Target="INBOUND_MODE" Default="poll|callback|off" Mode="" Description="poll = check NetSIP for new inbound SMS on a timer. callback = NetSIP pushes replies (needs Public Base URL and Callback Token). off = outbound only." Type="Variable" Display="always" Required="false" Mask="false">poll</Config>
+  <Config Name="Poll Interval" Target="POLL_INTERVAL" Default="15" Mode="" Description="Seconds between inbound checks (minimum 5)." Type="Variable" Display="advanced" Required="false" Mask="false">15</Config>
+  <Config Name="NetSIP Plus Prefix" Target="NETSIP_PLUS_PREFIX" Default="true|false" Mode="" Description="true sends numbers to NetSIP as +61412345678, false as 61412345678." Type="Variable" Display="advanced" Required="false" Mask="false">true</Config>
+  <Config Name="Default Country Code" Target="DEFAULT_COUNTRY_CODE" Default="61" Mode="" Description="Used to expand local numbers such as 0412 345 678." Type="Variable" Display="advanced" Required="false" Mask="false">61</Config>
+  <Config Name="NetSIP Base URL" Target="NETSIP_BASE_URL" Default="https://api.overthewire.com.au" Mode="" Description="NetSIP API address." Type="Variable" Display="advanced" Required="false" Mask="false">https://api.overthewire.com.au</Config>
+  <Config Name="Public Base URL" Target="PUBLIC_BASE_URL" Default="" Mode="" Description="Only for callback mode: the public https address of this bridge." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Callback Token" Target="CALLBACK_TOKEN" Default="" Mode="" Description="Only for callback mode: any long random string." Type="Variable" Display="advanced" Required="false" Mask="true"/>
+  <Config Name="Log Level" Target="LOG_LEVEL" Default="INFO|DEBUG|WARNING" Mode="" Description="Log detail." Type="Variable" Display="advanced" Required="false" Mask="false">INFO</Config>
+</Container>

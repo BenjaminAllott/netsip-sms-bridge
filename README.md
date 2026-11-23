@@ -33,6 +33,18 @@ The same image is also published as `ghcr.io/benjaminallott/netsip-sms-bridge:la
 Update later with `docker pull sparkybearbomb/netsip-sms-bridge:latest`, then remove
 and re-run the container.
 
+### Unraid
+
+Install the template once from the Unraid terminal:
+
+```
+curl -o /boot/config/plugins/dockerMan/templates-user/my-netsip-sms-bridge.xml \
+  https://raw.githubusercontent.com/BenjaminAllott/netsip-sms-bridge/main/unraid/netsip-sms-bridge.xml
+```
+
+Then Docker > Add Container > Template > `netsip-sms-bridge`, fill in the fields and
+Apply. No `.env` file or extra parameters are needed.
+
 Or build from source:
 
 ```
