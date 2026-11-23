@@ -60,7 +60,7 @@ class BridgeTest(unittest.TestCase):
         self.env = {
             "LISTEN_PORT": "0", "YEASTAR_API_KEY": "pbxkey", "YEASTAR_SECRET": "shh",
             "YEASTAR_WEBHOOK_URL": mock_url + "/webhook", "NETSIP_BASE_URL": mock_url,
-            "NETSIP_ACCOUNT_ID": "SRC1", "NETSIP_USERNAME": "u", "NETSIP_PASSWORD": "p",
+            "NETSIP_ACCOUNT_ID": "SRC1", "NETSIP_NUMBERS": "+61299990000, 0299990001", "NETSIP_USERNAME": "u", "NETSIP_PASSWORD": "p",
             "STATE_FILE": os.path.join(self.tmp.name, "state.json"),
         }
         self.boot()
@@ -108,10 +108,10 @@ class BridgeTest(unittest.TestCase):
     def test_send_rejections(self):
         self.assertEqual(self.call("POST", "/yeastar/send", {"from": "+61", "to": "+61"}, key="no")[0], 401)
         status, text = self.call("POST", "/yeastar/send",
-                                 {"from": "+612", "to": "+614", "media_urls": ["http://x/y"]})
+                                 {"from": "+61299990000", "to": "+614", "media_urls": ["http://x/y"]})
         self.assertEqual((status, json.loads(text)["errors"][0]["code"]), (400, "10003"))
         self.mock.send_status = 401
-        status, text = self.call("POST", "/yeastar/send", {"from": "+612", "to": "+614", "text": "x"})
+        status, text = self.call("POST", "/yeastar/send", {"from": "+61299990000", "to": "+614", "text": "x"})
         self.assertEqual((status, json.loads(text)["errors"][0]["code"]), (401, "10004"))
 
     def test_no_plus_format(self):
@@ -142,6 +142,33 @@ class BridgeTest(unittest.TestCase):
         self.boot()
         self.assertEqual(self.srv.bridge.poll_once(), 0)
 
+    def test_number_isolation(self):
+        # The mock ignores the to_addr filter, like a worst-case NetSIP would.
+        b = self.srv.bridge
+        self.assertEqual(b.cfg.numbers, ["+61299990000", "+61299990001"])
+        b.poll_once()                                # prime
+        self.mock.inbound = [
+            {"id": 10, "from_addr": "61400000009", "to_addr": "61288887777", "content": "someone else's"},
+            {"id": 11, "from_addr": "61400000009", "to_addr": "61299990001", "content": "ours"},
+        ]
+        self.assertEqual(b.poll_once(), 1)
+        self.assertEqual(len(self.webhooks()), 1)
+        p = json.loads(self.webhooks()[0][3])["data"]["payload"]
+        self.assertEqual((p["to"][0]["phone_number"], p["text"]), ("+61299990001", "ours"))
+        polled = sorted(urllib.parse.parse_qs(urllib.parse.urlsplit(r[1]).query)["to_addr"][0]
+                        for r in self.mock.requests if r[0] == "GET")
+        self.assertEqual(sorted(set(polled)), ["+61299990000", "+61299990001"])
+        # outbound from a number that is not ours is refused and never reaches NetSIP
+        before = len(self.mock.requests)
+        status, text = self.call("POST", "/yeastar/send",
+                                 {"from": "+61288887777", "to": "+61412345678", "text": "x"})
+        self.assertEqual((status, json.loads(text)["errors"][0]["code"]), (400, "10005"))
+        self.assertEqual(len(self.mock.requests), before)
+
+    def test_numbers_required(self):
+        env = dict(self.env, NETSIP_NUMBERS="")
+        self.assertTrue(any("NETSIP_NUMBERS" in p for p in bridge.Config(env).problems()))
+
     def test_callback(self):
         q = urllib.parse.urlencode({"token": "tok", "from_addr": "61400000003",
                                     "to_addr": "61299990000", "content": "reply"})
@@ -151,7 +178,7 @@ class BridgeTest(unittest.TestCase):
         self.assertEqual(self.call("GET", "/netsip/inbound?" + q)[0], 200)
         p = json.loads(self.webhooks()[-1][3])["data"]["payload"]
         self.assertEqual((p["from"]["phone_number"], p["text"]), ("+61400000003", "reply"))
-        self.call("POST", "/yeastar/send", {"from": "+612", "to": "+614", "text": "x"})
+        self.call("POST", "/yeastar/send", {"from": "+61299990000", "to": "+614", "text": "x"})
         sent = json.loads(self.mock.requests[-1][3])
         self.assertEqual(sent["callback_reply_uri"], "https://sms.example.com/netsip/inbound?token=tok")
         self.assertEqual(sent["callback_reply_method"], "httprest")

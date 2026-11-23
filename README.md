@@ -14,6 +14,7 @@ Inbound    handset -> NetSIP -> bridge -> PBX webhook -> Linkus user
 - One Python file, standard library only, on a small Alpine image
 - Runs on amd64 and arm64
 - Several NetSIP numbers on one PBX channel
+- Only touches the numbers you list, so one NetSIP account can serve several PBXs
 - No secrets in the image: everything is supplied as environment variables
 
 > Unofficial project, not affiliated with or supported by Over the Wire, NetSIP or
@@ -43,6 +44,7 @@ docker run -d --name netsip-sms --restart unless-stopped \
   -e NETSIP_ACCOUNT_ID=SRC12345 \
   -e NETSIP_USERNAME=your-api-user \
   -e NETSIP_PASSWORD=your-api-password \
+  -e NETSIP_NUMBERS=+61400000001 \
   -v netsip-sms-data:/data -p 8080:8080 \
   sparkybearbomb/netsip-sms-bridge:latest
 ```
@@ -107,7 +109,7 @@ enter the same values on both sides.
 | `NETSIP_ACCOUNT_ID` | required | Over the Wire account ID |
 | `NETSIP_USERNAME` | required | NetSIP API username |
 | `NETSIP_PASSWORD` | required | NetSIP API password |
-| `NETSIP_NUMBERS` | empty | Comma separated numbers to poll. Empty polls the whole account |
+| `NETSIP_NUMBERS` | required | Comma separated numbers this bridge may use. Nothing else on the account is fetched or sent from |
 | `INBOUND_MODE` | `poll` | `poll`, `callback` or `off` |
 | `POLL_INTERVAL` | `15` | Seconds between inbound checks (minimum 5) |
 | `NETSIP_PLUS_PREFIX` | `true` | `true` sends `+61412345678` to NetSIP, `false` sends `61412345678` |
@@ -134,15 +136,28 @@ required setting is missing and names it in the log.
   to messages sent through the bridge, not unsolicited inbound messages.
 - **`off`**: outbound only.
 
-## Multiple numbers
+## Numbers and isolation
 
-Nothing extra to configure in the bridge. Outbound, the PBX says which number the user
-is sending from and the bridge passes it through. Inbound, each message keeps its
-destination number and the PBX routes it to that number's destination. Add every
-number to the same PBX channel.
+`NETSIP_NUMBERS` is an allow-list and the bridge will not start without it.
 
-One bridge serves one NetSIP account and one PBX channel. Run a second container for a
-second account or a second PBX.
+- **Inbound:** the bridge asks NetSIP only for messages to the listed numbers, then
+  checks each result again itself. A message for any other number on the account is
+  discarded and never reaches the PBX.
+- **Outbound:** the PBX may only send from a listed number. Anything else is refused
+  with error 10005 and never reaches NetSIP.
+
+List several numbers to serve them all through one PBX channel; add each of them under
+**Number** on that channel.
+
+### Several PBXs on one NetSIP account
+
+Run one container per PBX, each with its own `NETSIP_NUMBERS`, `YEASTAR_API_KEY`,
+`YEASTAR_SECRET` and `YEASTAR_WEBHOOK_URL`. Do not list the same number in two
+containers, or both PBXs will receive its messages.
+
+Each container still holds the account-wide NetSIP login, because NetSIP has no
+per-number credentials. Keep the containers on infrastructure you control; the PBXs
+themselves only ever hold their own bridge API key.
 
 ## First run checklist
 
@@ -159,10 +174,11 @@ bridge matches field names loosely and logs what it receives.
 
 ## Limitations
 
-- Text SMS only. MMS from the PBX is refused with error 10003.
+- Text SMS only: NetSIP does not carry MMS, so MMS from the PBX is refused with error
+  10003.
 - Delivery receipts from NetSIP are not passed back to the PBX.
-- A message to a number that is not on the PBX channel is retried on every poll until
-  it ages out of the two day window.
+- A message to a listed number that is missing from the PBX channel is retried on
+  every poll until it ages out of the two day window.
 
 ## Endpoints
 

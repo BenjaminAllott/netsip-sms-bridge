@@ -74,7 +74,9 @@ class Config:
         self.country_code = g("DEFAULT_COUNTRY_CODE", "61").lstrip("+")
         self.inbound_mode = g("INBOUND_MODE", "poll").strip().lower()
         self.poll_interval = max(5, int(g("POLL_INTERVAL", "15")))
-        self.poll_numbers = [n.strip() for n in g("NETSIP_NUMBERS", "").split(",") if n.strip()]
+        # The only numbers this bridge will poll, deliver for, or send from.
+        numbers = [to_e164(n, self.country_code) for n in g("NETSIP_NUMBERS", "").split(",")]
+        self.numbers = sorted({n for n in numbers if n})
         self.public_url = g("PUBLIC_BASE_URL", "").rstrip("/")
         self.callback_token = g("CALLBACK_TOKEN", "")
         self.state_file = g("STATE_FILE", "/data/state.json")
@@ -86,6 +88,8 @@ class Config:
             out.append("YEASTAR_API_KEY is required")
         if not (self.netsip_account and self.netsip_user and self.netsip_pass):
             out.append("NETSIP_ACCOUNT_ID, NETSIP_USERNAME and NETSIP_PASSWORD are required")
+        if not self.numbers:
+            out.append("NETSIP_NUMBERS is required: list the number(s) this bridge may use")
         if self.inbound_mode not in ("poll", "callback", "off"):
             out.append("INBOUND_MODE must be poll, callback or off")
         if self.inbound_mode != "off" and not self.yeastar_webhook_url:
@@ -194,6 +198,9 @@ class Bridge:
 
     # ---------- NetSIP side ----------
 
+    def allowed(self, number):
+        return to_e164(number, self.cfg.country_code) in self.cfg.numbers
+
     def netsip_number(self, number):
         n = to_e164(number, self.cfg.country_code)
         return n if self.cfg.netsip_plus else n.lstrip("+")
@@ -219,6 +226,9 @@ class Bridge:
         text = msg.get("text") or ""
         if not frm or not to:
             return 400, err("10002", "Invalid parameter", "'from' and 'to' are required.")
+        if not self.allowed(frm):
+            log.warning("refused send from %s: not in NETSIP_NUMBERS", frm)
+            return 400, err("10005", "No permission", "This bridge may not send from %s." % frm)
         if not text:
             code = "10003" if msg.get("media_urls") else "10002"
             return 400, err(code, "Unsupported message", "Only text SMS is supported (no MMS).")
@@ -297,14 +307,19 @@ class Bridge:
         log.error("inbound %s -> %s: PBX webhook returned %s: %s", frm, to, status, resp[:300])
         return False
 
-    def fetch_inbound(self, to_addr=None):
+    def fetch_inbound(self, to_addr):
+        """List recent inbound messages addressed to one of our numbers.
+
+        NetSIP is asked to filter by to_addr, but the result is filtered again
+        here so a message for any other number on the account is never kept,
+        whatever the API returns.
+        """
         items = []
         date_from = (datetime.now(timezone.utc) - timedelta(days=2)).strftime("%Y-%m-%d")
         for page in range(20):
             params = {"account_id": self.cfg.netsip_account, "date_from": date_from,
-                      "limit": 100, "offset": page * 100}
-            if to_addr:
-                params["to_addr"] = self.netsip_number(to_addr)
+                      "limit": 100, "offset": page * 100,
+                      "to_addr": self.netsip_number(to_addr)}
             status, resp = self.netsip("GET", "/api/v1/service/sms/inbound/", params=params)
             if not 200 <= status < 300:
                 raise OSError("NetSIP inbound list returned %s: %s" % (status, resp[:300]))
@@ -318,14 +333,14 @@ class Bridge:
                 if rows is None:
                     rows = next((v for v in data.values() if isinstance(v, list)), [])
             rows = [r for r in rows if isinstance(r, dict)] if isinstance(rows, list) else []
-            items.extend(rows)
+            items.extend(r for r in rows if self.allowed(pick(r, TO_KEYS)))
             if len(rows) < 100:
                 break
         return items
 
     def poll_once(self):
         items = []
-        for number in (self.cfg.poll_numbers or [None]):
+        for number in self.cfg.numbers:
             items.extend(self.fetch_inbound(number))
         first_run = not self.state.primed
         delivered = 0
@@ -365,6 +380,9 @@ class Bridge:
         frm, to, text = pick(fields, FROM_KEYS), pick(fields, TO_KEYS), pick(fields, TEXT_KEYS)
         if not (frm and to and text):
             log.warning("callback with unrecognised fields: %s", json.dumps(fields)[:400])
+            return False
+        if not self.allowed(to):
+            log.warning("ignored callback for %s: not in NETSIP_NUMBERS", to)
             return False
         raw_id = pick(fields, ID_KEYS)
         msg_id = "netsip-%s" % raw_id if raw_id != "" else str(uuid.uuid4())
