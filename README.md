@@ -25,12 +25,13 @@ The quickest way is the published image. Create a `.env` from
 ```
 docker run -d --name netsip-sms --restart unless-stopped \
   --env-file .env -v netsip-sms-data:/data -p 127.0.0.1:8080:8080 \
-  ghcr.io/benjaminallott/netsip-sms-bridge:latest
+  sparkybearbomb/netsip-sms-bridge:latest
 docker logs -f netsip-sms
 ```
 
-Update later with `docker pull ghcr.io/benjaminallott/netsip-sms-bridge:latest`, then
-remove and re-run the container.
+The same image is also published as `ghcr.io/benjaminallott/netsip-sms-bridge:latest`.
+Update later with `docker pull sparkybearbomb/netsip-sms-bridge:latest`, then remove
+and re-run the container.
 
 Or build from source:
 
