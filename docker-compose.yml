@@ -1,0 +1,27 @@
+services:
+  sms-bridge:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - bridge-data:/data
+    ports:
+      - "127.0.0.1:8080:8080"   # put your HTTPS reverse proxy in front of this
+
+  # Optional built-in HTTPS (Let's Encrypt). Start with:
+  #   docker compose --profile tls up -d
+  # Needs BRIDGE_DOMAIN in .env, a public DNS record for it, and ports 80/443 open.
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["tls"]
+    restart: unless-stopped
+    command: caddy reverse-proxy --from ${BRIDGE_DOMAIN:-localhost} --to sms-bridge:8080
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy-data:/data
+
+volumes:
+  bridge-data:
+  caddy-data:
