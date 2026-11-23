@@ -183,3 +183,13 @@ The tests run the bridge against in-process mock NetSIP and Yeastar servers. Eve
 to `main` runs them, then builds and publishes the image to Docker Hub and GHCR.
 
 Source and issues: https://github.com/BenjaminAllott/netsip-sms-bridge
+
+## Licence
+
+Copyright (C) 2026 Allott Group Pty Ltd.
+
+Released under the
+[GNU Affero General Public License v3.0](https://github.com/BenjaminAllott/netsip-sms-bridge/blob/main/LICENSE).
+You may use and modify it freely, but if you distribute it, or run a modified version
+as a service for others, you must make your source available under the same licence.
+It comes with no warranty.

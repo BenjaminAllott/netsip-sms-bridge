@@ -3,7 +3,7 @@ FROM python:3.13-alpine
 # without extra flags. Any other host just sees an unprivileged user.
 RUN mkdir /data && chown 99:100 /data
 WORKDIR /app
-COPY bridge.py .
+COPY bridge.py LICENSE ./
 USER 99:100
 VOLUME /data
 EXPOSE 8080

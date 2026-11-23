@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 Allott Group Pty Ltd
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, version 3. It is distributed WITHOUT ANY WARRANTY; see
+# the LICENSE file for details.
+#
+# Source: https://github.com/BenjaminAllott/netsip-sms-bridge
+# SPDX-License-Identifier: AGPL-3.0-only
 """SMS bridge between Over the Wire / NetSIP and a Yeastar P-Series PBX.
 
 The bridge plays the "Service Provider" role of Yeastar's generic SMS API
