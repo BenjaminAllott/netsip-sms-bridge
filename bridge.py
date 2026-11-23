@@ -3,11 +3,12 @@
 #
 # This program is free software: you can redistribute it and/or modify it under
 # the terms of the GNU Affero General Public License as published by the Free
-# Software Foundation, version 3. It is distributed WITHOUT ANY WARRANTY; see
-# the LICENSE file for details.
+# Software Foundation, either version 3 of the License, or (at your option) any
+# later version. It is distributed WITHOUT ANY WARRANTY; see the LICENSE file
+# for details.
 #
 # Source: https://github.com/BenjaminAllott/netsip-sms-bridge
-# SPDX-License-Identifier: AGPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """SMS bridge between Over the Wire / NetSIP and a Yeastar P-Series PBX.
 
 The bridge plays the "Service Provider" role of Yeastar's generic SMS API
